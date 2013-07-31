@@ -24,8 +24,10 @@ References:
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
+var rest = require('restler');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var URL_DEFAULT = "http://fierce-sierra-9320.herokuapp.com/";
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -35,6 +37,19 @@ var assertFileExists = function(infile) {
     }
     return instr;
 };
+
+var assertPageExists = function(url_link) {
+    rest.get(url_link).on('complete', function(result) {
+	if (result instanceof Error) {
+	    console.log('Error: ' + result.message);
+	    this.retry(5000); // try again after 5 sec
+	    process.exit(1);
+	} else {
+	    return result;
+	}
+    });
+} 
+
 
 var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
@@ -61,11 +76,13 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
+
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .parse(process.argv);
+	.option('-u, --url <url_link>', 'URL path to html',  clone(assertPageExists), URL_DEFAULT)
+.parse(process.argv);
     var checkJson = checkHtmlFile(program.file, program.checks);
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
